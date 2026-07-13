@@ -11,8 +11,3 @@ body {
   margin: 0;
   min-width: 320px;
 }
-
-.links {
-  cursor: pointer;
-  font-size:24px;
-}

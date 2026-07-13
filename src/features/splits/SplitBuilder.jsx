@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import { useState } from 'react';
 
 export default function SplitBuilder() {
     const [days, setDays] = useState([
@@ -137,49 +137,49 @@ export default function SplitBuilder() {
   }
 
   return (
-    <div style={{ backgroundColor: '#09090b', minHeight: '100vh', color: '#f3f4f6', padding: '27px 15px', fontFamily: 'monospace' }}>
-      <header style={{ marginBottom: '23px', borderBottom: '2px solid #27272a', paddingBottom: '9px' }}>
-        <h1 style={{ fontSize: '26px', fontWeight: 'bold', margin: '0 0 5px 0' }}>Workout Split Builder</h1>
-        <p style={{ color: '#71717a', fontSize: '13px', margin: '0' }}>Customize your weekly routine and plan exercises</p>
+    <main className="min-h-screen bg-zinc-950 px-[15px] py-[27px] font-mono text-zinc-100">
+      <header className="mb-[23px] border-b-2 border-zinc-800 pb-[9px]">
+        <h1 className="mb-[5px] text-[26px] font-bold text-white">Workout Split Builder</h1>
+        <p className="text-[13px] text-zinc-500">Customize your weekly routine and plan exercises</p>
       </header>
 
-      <div style={{ display: 'flex', gap: '9px', marginBottom: '29px', flexWrap: 'wrap' }}>
-        <input type="text" placeholder="e.g. Day 3 - Legs" value={newDayName} onChange={handleNewDayNameChange} style={{padding: '9px', border: '1px solid #3f3f46', backgroundColor: '#18181b', color: '#ffffff', flex: '1', minWidth: '220px'}} />
-        <button onClick={addDay} style={{padding: '9px 15px', backgroundColor: '#1d4ed8', color: '#ffffff', border: '1px solid #3b82f6', cursor: 'pointer', fontWeight: '600'}}>Add Workout Day</button>
-        <button onClick={saveSplitToLocalStorage} style={{padding: '9px 15px', backgroundColor: '#15803d', color: '#ffffff', border: '1px solid #22c55e', cursor: 'pointer', fontWeight: '600'}}>Save Split Data</button>
+      <div className="mb-[29px] flex flex-wrap gap-[9px]">
+        <input type="text" placeholder="e.g. Day 3 - Legs" value={newDayName} onChange={handleNewDayNameChange} className="min-w-[220px] flex-1 border border-zinc-700 bg-zinc-900 p-[9px] text-white outline-none focus:border-blue-500" />
+        <button onClick={addDay} className="cursor-pointer border border-blue-500 bg-blue-700 px-[15px] py-[9px] font-semibold text-white hover:bg-blue-600">Add Workout Day</button>
+        <button onClick={saveSplitToLocalStorage} className="cursor-pointer border border-green-500 bg-green-700 px-[15px] py-[9px] font-semibold text-white hover:bg-green-600">Save Split Data</button>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '17px' }}>
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-[17px]">
         {days.map(function(day) {
           return (
-            <div key={day.id} style={{backgroundColor: '#141416', border: '1px solid #27272a', padding: '13px 18px 22px 18px'}}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '13px' }}>
-                <h3 style={{ fontSize: '16px', fontWeight: 'bold', margin: '0' }}>{day.dayName}</h3>
-                <button data-id={day.id} onClick={handleDeleteDayClick} style={{backgroundColor: '#b91c1c', color: '#ffffff', border: '1px solid #ef4444', padding: '4px 8px', cursor: 'pointer', fontSize: '11px'}}>Delete Day</button>
+            <div key={day.id} className="border border-zinc-800 bg-zinc-900 px-[18px] pb-[22px] pt-[13px]">
+              <div className="mb-[13px] flex items-center justify-between gap-3">
+                <h3 className="text-base font-bold text-white">{day.dayName}</h3>
+                <button data-id={day.id} onClick={handleDeleteDayClick} className="cursor-pointer border border-red-500 bg-red-700 px-2 py-1 text-[11px] text-white hover:bg-red-600">Delete Day</button>
               </div>
 
-              <div style={{ marginBottom: '17px' }}>
-                {day.exercises.length == 0 && <p style={{color: '#71717a', fontSize: '12px', fontStyle: 'italic', margin: '5px 0'}}>No exercises added yet.</p>}
-                {day.exercises.length > 0 && <ul style={{listStyleType: 'none', padding: '0', margin: '0'}}>
+              <div className="mb-[17px]">
+                {day.exercises.length == 0 && <p className="my-[5px] text-xs italic text-zinc-500">No exercises added yet.</p>}
+                {day.exercises.length > 0 && <ul className="m-0 list-none p-0">
                   {day.exercises.map(function(exercise, index) {
                     return (
-                      <li key={index} style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#202023', padding: '7px 11px', borderBottom: '1px solid #2d2d30', marginBottom: '4px', fontSize: '13px'}}>
+                      <li key={index} className="mb-1 flex items-center justify-between gap-3 border-b border-zinc-700 bg-zinc-800/80 px-[11px] py-[7px] text-[13px]">
                         <span>{exercise}</span>
-                        <button data-dayid={day.id} data-index={index} onClick={handleRemoveExerciseClick} style={{backgroundColor: 'transparent', color: '#ef4444', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 'bold', padding: '0 3px'}}>X</button>
+                        <button data-dayid={day.id} data-index={index} onClick={handleRemoveExerciseClick} className="cursor-pointer bg-transparent px-[3px] text-[13px] font-bold text-red-500 hover:text-red-400">X</button>
                       </li>
                     );
                   })}
                 </ul>}
               </div>
 
-              <div style={{ display: 'flex', gap: '6px' }}>
-                <input type="text" placeholder="Add exercise" data-dayid={day.id} value={newExerciseText[day.id] || ''} onChange={handleExerciseInputChange} style={{flex: '1', padding: '6px 10px', backgroundColor: '#09090b', border: '1px solid #3f3f46', color: '#ffffff', fontSize: '12px'}} />
-                <button data-dayid={day.id} onClick={handleAddExerciseClick} style={{padding: '6px 12px', backgroundColor: '#4338ca', color: '#ffffff', border: '1px solid #6366f1', cursor: 'pointer', fontSize: '12px', fontWeight: '600'}}>Add</button>
+              <div className="flex gap-[6px]">
+                <input type="text" placeholder="Add exercise" data-dayid={day.id} value={newExerciseText[day.id] || ''} onChange={handleExerciseInputChange} className="flex-1 border border-zinc-700 bg-zinc-950 px-[10px] py-[6px] text-xs text-white outline-none focus:border-indigo-500" />
+                <button data-dayid={day.id} onClick={handleAddExerciseClick} className="cursor-pointer border border-indigo-500 bg-indigo-700 px-3 py-[6px] text-xs font-semibold text-white hover:bg-indigo-600">Add</button>
               </div>
             </div>
           );
         })}
       </div>
-    </div>
+    </main>
   );
 }
