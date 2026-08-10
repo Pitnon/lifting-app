@@ -1,5 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import {
+  loadActiveWorkout,
+  saveActiveWorkout,
+} from "./workoutStorage";
 
 const STARTER_EXERCISES = [
   { id: "bench-press", name: "Bench Press" },
@@ -18,11 +22,54 @@ function createSet() {
 function createStarterLog() {
   return STARTER_EXERCISES.map((exercise) => ({
     ...exercise,
+    notes: "",
+    completed: false,
     sets: [createSet()],
   }));
 }
 
-function SetRow({ exerciseId, index, set, canRemove, onChange, onRemove }) {
+function exerciseHasData(exercise) {
+  return (
+    exercise.notes.trim() !== "" ||
+    exercise.sets.some((set) => set.weight !== "" || set.reps !== "")
+  );
+}
+
+function getExerciseStatus(exercise) {
+  if (exercise.completed) {
+    return "complete";
+  }
+
+  return exerciseHasData(exercise) ? "in-progress" : "not-started";
+}
+
+const STATUS_STYLES = {
+  "not-started": {
+    card: "border-zinc-800 bg-zinc-900",
+    badge: "border-zinc-700 bg-zinc-950 text-zinc-400",
+    label: "Not started",
+  },
+  "in-progress": {
+    card: "border-yellow-500/70 bg-yellow-950/25",
+    badge: "border-yellow-500/70 bg-yellow-950 text-yellow-200",
+    label: "In progress",
+  },
+  complete: {
+    card: "border-green-500/70 bg-green-950/25",
+    badge: "border-green-500/70 bg-green-950 text-green-200",
+    label: "Complete",
+  },
+};
+
+function SetRow({
+  exerciseId,
+  exerciseName,
+  index,
+  set,
+  canRemove,
+  onChange,
+  onRemove,
+}) {
   function handleWeightChange(event) {
     onChange(exerciseId, set.id, "weight", event.target.value);
   }
@@ -47,6 +94,7 @@ function SetRow({ exerciseId, index, set, canRemove, onChange, onRemove }) {
           type="number"
           min="0"
           inputMode="decimal"
+          aria-label={`Weight for ${exerciseName} set ${index + 1}`}
           value={set.weight}
           onChange={handleWeightChange}
           className="min-w-0 border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-white outline-none focus:border-blue-500"
@@ -59,6 +107,7 @@ function SetRow({ exerciseId, index, set, canRemove, onChange, onRemove }) {
           type="number"
           min="0"
           inputMode="numeric"
+          aria-label={`Reps for ${exerciseName} set ${index + 1}`}
           value={set.reps}
           onChange={handleRepsChange}
           className="min-w-0 border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-white outline-none focus:border-blue-500"
@@ -79,18 +128,43 @@ function SetRow({ exerciseId, index, set, canRemove, onChange, onRemove }) {
   );
 }
 
-function ExerciseLogCard({ exercise, onAddSet, onRemoveSet, onSetChange }) {
+function ExerciseLogCard({
+  exercise,
+  onAddSet,
+  onRemoveSet,
+  onSetChange,
+  onNotesChange,
+  onToggleComplete,
+}) {
   function handleAddSet() {
     onAddSet(exercise.id);
   }
 
+  function handleNotesChange(event) {
+    onNotesChange(exercise.id, event.target.value);
+  }
+
+  function handleToggleComplete() {
+    onToggleComplete(exercise.id);
+  }
+
+  const status = getExerciseStatus(exercise);
+  const statusStyles = STATUS_STYLES[status];
+
   return (
-    <article className="border border-zinc-800 bg-zinc-900 p-4">
-      <div className="mb-4 flex items-center justify-between gap-3">
+    <article className={`border p-4 transition-colors ${statusStyles.card}`}>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-lg font-bold text-white">{exercise.name}</h2>
-        <span className="border border-zinc-700 bg-zinc-950 px-2 py-1 text-xs font-semibold text-zinc-400">
-          {exercise.sets.length} {exercise.sets.length === 1 ? "set" : "sets"}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="border border-zinc-700 bg-zinc-950 px-2 py-1 text-xs font-semibold text-zinc-400">
+            {exercise.sets.length} {exercise.sets.length === 1 ? "set" : "sets"}
+          </span>
+          <span
+            className={`border px-2 py-1 text-xs font-semibold ${statusStyles.badge}`}
+          >
+            {statusStyles.label}
+          </span>
+        </div>
       </div>
 
       <div className="grid gap-3">
@@ -98,6 +172,7 @@ function ExerciseLogCard({ exercise, onAddSet, onRemoveSet, onSetChange }) {
           <SetRow
             key={set.id}
             exerciseId={exercise.id}
+            exerciseName={exercise.name}
             index={index}
             set={set}
             canRemove={exercise.sets.length > 1}
@@ -107,19 +182,52 @@ function ExerciseLogCard({ exercise, onAddSet, onRemoveSet, onSetChange }) {
         ))}
       </div>
 
-      <button
-        type="button"
-        onClick={handleAddSet}
-        className="mt-4 border border-indigo-500 bg-indigo-700 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-600"
-      >
-        Add Set
-      </button>
+      <label className="mt-4 grid gap-1 text-xs font-semibold text-zinc-400">
+        Training notes
+        <textarea
+          value={exercise.notes}
+          onChange={handleNotesChange}
+          rows="2"
+          aria-label={`Training notes for ${exercise.name}`}
+          placeholder="Optional notes for this exercise"
+          className="resize-y border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm font-normal text-white outline-none focus:border-blue-500"
+        />
+      </label>
+
+      <div className="mt-4 flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={handleAddSet}
+          className="border border-indigo-500 bg-indigo-700 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-600"
+        >
+          Add Set
+        </button>
+        <button
+          type="button"
+          onClick={handleToggleComplete}
+          disabled={!exerciseHasData(exercise)}
+          aria-label={
+            exercise.completed
+              ? `Reopen ${exercise.name}`
+              : `Complete ${exercise.name}`
+          }
+          className="border border-green-500 bg-green-700 px-3 py-2 text-sm font-semibold text-white hover:bg-green-600 disabled:cursor-not-allowed disabled:border-zinc-700 disabled:bg-zinc-800 disabled:text-zinc-500"
+        >
+          {exercise.completed ? "Reopen Exercise" : "Complete Exercise"}
+        </button>
+      </div>
     </article>
   );
 }
 
 export default function WorkoutLogger() {
-  const [exercises, setExercises] = useState(createStarterLog);
+  const [exercises, setExercises] = useState(() =>
+    loadActiveWorkout(createStarterLog),
+  );
+
+  useEffect(() => {
+    saveActiveWorkout(exercises);
+  }, [exercises]);
 
   function addSet(exerciseId) {
     setExercises((currentExercises) =>
@@ -130,6 +238,7 @@ export default function WorkoutLogger() {
 
         return {
           ...exercise,
+          completed: false,
           sets: [...exercise.sets, createSet()],
         };
       }),
@@ -145,6 +254,7 @@ export default function WorkoutLogger() {
 
         return {
           ...exercise,
+          completed: false,
           sets: exercise.sets.filter((set) => set.id !== setId),
         };
       }),
@@ -160,6 +270,7 @@ export default function WorkoutLogger() {
 
         return {
           ...exercise,
+          completed: false,
           sets: exercise.sets.map((set) => {
             if (set.id !== setId) {
               return set;
@@ -172,6 +283,26 @@ export default function WorkoutLogger() {
           }),
         };
       }),
+    );
+  }
+
+  function updateNotes(exerciseId, notes) {
+    setExercises((currentExercises) =>
+      currentExercises.map((exercise) =>
+        exercise.id === exerciseId
+          ? { ...exercise, notes, completed: false }
+          : exercise,
+      ),
+    );
+  }
+
+  function toggleComplete(exerciseId) {
+    setExercises((currentExercises) =>
+      currentExercises.map((exercise) =>
+        exercise.id === exerciseId
+          ? { ...exercise, completed: !exercise.completed }
+          : exercise,
+      ),
     );
   }
 
@@ -200,7 +331,10 @@ export default function WorkoutLogger() {
                 Active Workout Log
               </h1>
               <p className="mt-1 text-sm text-zinc-500">
-                Enter sets, reps, and weight for a starter lifting session.
+                Enter sets, reps, weight, and notes. Changes save automatically.
+              </p>
+              <p className="mt-2 text-xs font-semibold text-green-400">
+                Autosave is on
               </p>
             </div>
 
@@ -239,6 +373,8 @@ export default function WorkoutLogger() {
               onAddSet={addSet}
               onRemoveSet={removeSet}
               onSetChange={updateSet}
+              onNotesChange={updateNotes}
+              onToggleComplete={toggleComplete}
             />
           ))}
         </section>

@@ -24,5 +24,5 @@ has been removed.
 ## Current project scope
 
 - Leo's split builder can add/remove workout days, add/remove exercises, and save the split JSON string to the `workoutSplit` localStorage key.
-- Brady's active workout logger is built only through the week of July 13 scope: the page layout exists, and set rows can be added, removed, and edited in memory.
-- Brady's later-week work is not implemented yet: no real-time autosave, yellow/green completion states, history storage, or automatic split-to-logger connection.
+- Brady's active workout logger is built through the week of July 20 scope: set rows and notes can be edited, the active log autosaves to the `activeWorkoutLog` localStorage key, and exercise cards show yellow in-progress or green completed states.
+- The week of August 3 shared integration is not implemented yet: selecting a split day does not automatically load its exercises into the active logger.
