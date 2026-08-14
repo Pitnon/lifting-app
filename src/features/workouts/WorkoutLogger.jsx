@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import {
   loadActiveWorkout,
   saveActiveWorkout,
@@ -20,12 +20,49 @@ function createSet() {
 }
 
 function createStarterLog() {
-  return STARTER_EXERCISES.map((exercise) => ({
-    ...exercise,
+  return STARTER_EXERCISES.map((exercise) =>
+    createExercise(exercise.name, exercise.id),
+  );
+}
+
+function createExercise(name, id = null) {
+  return {
+    id: id ?? `exercise-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    name,
     notes: "",
     completed: false,
     sets: [createSet()],
-  }));
+  };
+}
+
+function normalizeRequestedExerciseName(value) {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const normalizedName = value.trim().replace(/\s+/g, " ").slice(0, 80);
+  return normalizedName || null;
+}
+
+function namesMatch(firstName, secondName) {
+  return firstName.localeCompare(secondName, undefined, {
+    sensitivity: "accent",
+  }) === 0;
+}
+
+function createInitialLog(requestedExerciseName) {
+  const savedExercises = loadActiveWorkout(createStarterLog);
+
+  if (
+    !requestedExerciseName ||
+    savedExercises.some((exercise) =>
+      namesMatch(exercise.name, requestedExerciseName),
+    )
+  ) {
+    return savedExercises;
+  }
+
+  return [...savedExercises, createExercise(requestedExerciseName)];
 }
 
 function exerciseHasData(exercise) {
@@ -220,9 +257,9 @@ function ExerciseLogCard({
   );
 }
 
-export default function WorkoutLogger() {
+function WorkoutLoggerSession({ requestedExerciseName }) {
   const [exercises, setExercises] = useState(() =>
-    loadActiveWorkout(createStarterLog),
+    createInitialLog(requestedExerciseName),
   );
 
   useEffect(() => {
@@ -307,10 +344,27 @@ export default function WorkoutLogger() {
   }
 
   function resetLog() {
-    setExercises(createStarterLog());
+    if (!requestedExerciseName) {
+      setExercises(createStarterLog());
+      return;
+    }
+
+    setExercises((currentExercises) =>
+      currentExercises.map((exercise) =>
+        namesMatch(exercise.name, requestedExerciseName)
+          ? createExercise(exercise.name, exercise.id)
+          : exercise,
+      ),
+    );
   }
 
-  const totalSets = exercises.reduce(
+  const visibleExercises = requestedExerciseName
+    ? exercises.filter((exercise) =>
+        namesMatch(exercise.name, requestedExerciseName),
+      )
+    : exercises;
+
+  const totalSets = visibleExercises.reduce(
     (total, exercise) => total + exercise.sets.length,
     0,
   );
@@ -320,18 +374,20 @@ export default function WorkoutLogger() {
       <div className="mx-auto max-w-5xl">
         <header className="mb-6 border-b-2 border-zinc-800 pb-4">
           <Link
-            to="/"
+            to={requestedExerciseName ? "/split" : "/"}
             className="mb-4 inline-block text-sm font-semibold text-blue-400 hover:text-blue-300"
           >
-            Back
+            {requestedExerciseName ? "Back to Split Builder" : "Back"}
           </Link>
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
               <h1 className="text-2xl font-bold text-white">
-                Active Workout Log
+                {requestedExerciseName ?? "Active Workout Log"}
               </h1>
               <p className="mt-1 text-sm text-zinc-500">
-                Enter sets, reps, weight, and notes. Changes save automatically.
+                {requestedExerciseName
+                  ? "Edit this exercise. Changes save automatically."
+                  : "Enter sets, reps, weight, and notes. Changes save automatically."}
               </p>
               <p className="mt-2 text-xs font-semibold text-green-400">
                 Autosave is on
@@ -343,7 +399,7 @@ export default function WorkoutLogger() {
               onClick={resetLog}
               className="border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm font-semibold text-zinc-200 hover:bg-zinc-800"
             >
-              Reset Log
+              {requestedExerciseName ? "Reset Exercise" : "Reset Log"}
             </button>
           </div>
         </header>
@@ -354,7 +410,7 @@ export default function WorkoutLogger() {
               Exercises
             </p>
             <p className="mt-2 text-2xl font-bold text-white">
-              {exercises.length}
+              {visibleExercises.length}
             </p>
           </div>
           <div className="border border-zinc-800 bg-zinc-900 p-4">
@@ -366,7 +422,7 @@ export default function WorkoutLogger() {
         </section>
 
         <section className="grid gap-4 lg:grid-cols-2">
-          {exercises.map((exercise) => (
+          {visibleExercises.map((exercise) => (
             <ExerciseLogCard
               key={exercise.id}
               exercise={exercise}
@@ -380,5 +436,19 @@ export default function WorkoutLogger() {
         </section>
       </div>
     </main>
+  );
+}
+
+export default function WorkoutLogger() {
+  const [searchParams] = useSearchParams();
+  const requestedExerciseName = normalizeRequestedExerciseName(
+    searchParams.get("exercise"),
+  );
+
+  return (
+    <WorkoutLoggerSession
+      key={requestedExerciseName?.toLocaleLowerCase() ?? "all-exercises"}
+      requestedExerciseName={requestedExerciseName}
+    />
   );
 }
