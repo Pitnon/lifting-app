@@ -1,32 +1,249 @@
-import { useState } from 'react';
+// Add Enter Keybind to Enter Values in textboxes
+// Work on implementation with Brady's individual lifts.
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+
+var DEFAULT_DAYS = [
+  {
+    id: 2,
+    dayName: 'Day 2 - Pull',
+    exercises: [
+      { id: 'pullups-2', name: 'Pullups' },
+      { id: 'barbell-rows-2', name: 'Barbell Rows' },
+      { id: 'bicep-curls-2', name: 'Bicep Curls' }
+    ]
+  },
+  {
+    id: 1,
+    dayName: 'Day 1 - Push',
+    exercises: [
+      { id: 'incline-db-1', name: 'Incline Dumbbell Press' },
+      { id: 'dips-1', name: 'Dips' },
+      { id: 'tricep-push-1', name: 'Tricep Pushdowns' }
+    ]
+  }
+];
+
+function loadSavedDays() {
+  var saved = localStorage.getItem('workoutSplit');
+  if (!saved) {
+    return DEFAULT_DAYS;
+  }
+  
+  var parsed = JSON.parse(saved);
+  var cleaned = [];
+  for (var i = 0; i < parsed.length; i++) {
+    var day = parsed[i];
+    var exercisesList = [];
+
+    var currentDayId = day.id;
+    if (!currentDayId) {
+      currentDayId = Date.now() + i;
+    }
+
+    if (day.exercises) {
+      for (var j = 0; j < day.exercises.length; j++) {
+        var item = day.exercises[j];
+        if (typeof item == 'string') {
+          exercisesList.push({
+            id: 'ex-' + currentDayId + '-' + j,
+            name: item
+          });
+        } else {
+          var exId = item.id;
+          if (!exId) {
+            exId = 'ex-' + currentDayId + '-' + j;
+          }
+          exercisesList.push({
+            id: exId,
+            name: item.name
+          });
+        }
+      }
+    }
+
+    var currentDayName = day.dayName;
+    if (!currentDayName) {
+      currentDayName = 'Workout Day';
+    }
+
+    cleaned.push({
+      id: currentDayId,
+      dayName: currentDayName,
+      exercises: exercisesList
+    });
+  }
+  return cleaned;
+}
 
 export default function SplitBuilder() {
-    const [days, setDays] = useState([
-    { id: 1, dayName: 'Day 1 - Push', exercises: ['Incline Dumbbell Press', 'Dips', 'Tricep Pushdowns'] },
-    { id: 2, dayName: 'Day 2 - Pull', exercises: ['Pullups', 'Barbell Rows', 'Bicep Curls'] }
-  ]);
-  const [newDayName, setNewDayName] = useState('');
-  const [newExerciseText, setNewExerciseText] = useState({});
+  var navigate = useNavigate();
+  var [days, setDays] = useState(loadSavedDays);
+  var [newDayName, setNewDayName] = useState('');
+  var [newExerciseText, setNewExerciseText] = useState({});
+  var [activeWorkoutExercises, setActiveWorkoutExercises] = useState([]);
+
+  useEffect(function() {
+    localStorage.setItem('workoutSplit', JSON.stringify(days));
+  }, [days]);
+
+  useEffect(function() {
+    var savedWorkout = localStorage.getItem('activeWorkoutLog');
+    if (savedWorkout) {
+      var parsed = JSON.parse(savedWorkout);
+      if (parsed.exercises) {
+        setActiveWorkoutExercises(parsed.exercises);
+      }
+    }
+  }, []);
+
+  function getExerciseStatus(exerciseId) {
+    if (!activeWorkoutExercises || activeWorkoutExercises.length == 0) {
+      return 'not-started';
+    }
+
+    var match = null;
+    for (var i = 0; i < activeWorkoutExercises.length; i++) {
+      if (activeWorkoutExercises[i].id == exerciseId) {
+        match = activeWorkoutExercises[i];
+        break;
+      }
+    }
+
+    if (!match) {
+      return 'not-started';
+    }
+
+    if (match.completed) {
+      return 'complete';
+    }
+
+    var hasData = false;
+    if (match.notes && match.notes.trim() != '') {
+      hasData = true;
+    }
+    if (match.sets) {
+      for (var s = 0; s < match.sets.length; s++) {
+        if ((match.sets[s].weight && match.sets[s].weight != '') || (match.sets[s].reps && match.sets[s].reps != '')) {
+          hasData = true;
+          break;
+        }
+      }
+    }
+
+    if (hasData) {
+      return 'in-progress';
+    } else {
+      return 'not-started';
+    }
+  }
+
+  function handleExerciseClick(exercise) {
+    var savedWorkout = localStorage.getItem('activeWorkoutLog');
+    var exerciseList = [];
+
+    if (savedWorkout) {
+      var parsed = JSON.parse(savedWorkout);
+      if (parsed.exercises) {
+        for (var k = 0; k < parsed.exercises.length; k++) {
+          if (parsed.exercises[k].id != exercise.id) {
+            exerciseList.push(parsed.exercises[k]);
+          }
+        }
+      }
+    }
+
+    var targetItem = {
+      id: exercise.id,
+      name: exercise.name,
+      notes: '',
+      completed: false,
+      sets: [
+        {
+          id: 'set-' + Date.now(),
+          weight: '',
+          reps: ''
+        }
+      ]
+    };
+
+    var updatedList = [targetItem];
+    for (var m = 0; m < exerciseList.length; m++) {
+      updatedList.push(exerciseList[m]);
+    }
+
+    var payload = {
+      version: 1,
+      savedAt: new Date().toString(),
+      exercises: updatedList
+    };
+
+    localStorage.setItem('activeWorkoutLog', JSON.stringify(payload));
+    setActiveWorkoutExercises(updatedList);
+
+    navigate('/workout?exercise=' + encodeURIComponent(exercise.name));
+  }
 
   function addDay() {
-    if (newDayName == '') {
+    if (newDayName.trim() == '') {
       return;
     }
     var newDay = {
       id: Date.now(),
-      dayName: newDayName,
+      dayName: newDayName.trim(),
       exercises: []
     };
-    var updatedDays = [];
+
+    var updatedDays = [newDay];
     for (var i = 0; i < days.length; i++) {
       updatedDays.push(days[i]);
     }
-    updatedDays.push(newDay);
+
     setDays(updatedDays);
     setNewDayName('');
   }
 
+  function handleNewDayKeyDown(event) {
+    if (event.key == 'Enter') {
+      event.preventDefault();
+      addDay();
+    }
+  }
+
   function deleteDay(id) {
+    var dayToDelete = null;
+    for (var d = 0; d < days.length; d++) {
+      if (days[d].id == id) {
+        dayToDelete = days[d];
+        break;
+      }
+    }
+
+    if (dayToDelete && dayToDelete.exercises) {
+      var rawLog = localStorage.getItem('activeWorkoutLog');
+      if (rawLog) {
+        var parsedLog = JSON.parse(rawLog);
+        if (parsedLog.exercises) {
+          var filteredLogs = [];
+          for (var m = 0; m < parsedLog.exercises.length; m++) {
+            var isDeleted = false;
+            for (var e = 0; e < dayToDelete.exercises.length; e++) {
+              if (dayToDelete.exercises[e].id == parsedLog.exercises[m].id) {
+                isDeleted = true;
+                break;
+              }
+            }
+            if (!isDeleted) {
+              filteredLogs.push(parsedLog.exercises[m]);
+            }
+          }
+          parsedLog.exercises = filteredLogs;
+          localStorage.setItem('activeWorkoutLog', JSON.stringify(parsedLog));
+          setActiveWorkoutExercises(filteredLogs);
+        }
+      }
+    }
+
     var updatedDays = [];
     for (var i = 0; i < days.length; i++) {
       if (days[i].id != id) {
@@ -36,48 +253,43 @@ export default function SplitBuilder() {
     setDays(updatedDays);
   }
 
-  function handleDeleteDayClick(event) {
-    var id = Number(event.currentTarget.getAttribute('data-id'));
-    deleteDay(id);
-  }
-
   function handleExerciseInputChange(event) {
-    var dayId = Number(event.target.getAttribute('data-dayid'));
+    var dayId = event.target.getAttribute('data-dayid');
     var value = event.target.value;
-    
-    var updatedText = {};
+    var updated = {};
     for (var key in newExerciseText) {
-      updatedText[key] = newExerciseText[key];
+      updated[key] = newExerciseText[key];
     }
-    updatedText[dayId] = value;
-    setNewExerciseText(updatedText);
+    updated[dayId] = value;
+    setNewExerciseText(updated);
   }
 
   function addExercise(dayId) {
     var exerciseName = newExerciseText[dayId];
-    if (!exerciseName) {
+    if (!exerciseName || exerciseName.trim() == '') {
       return;
     }
-    if (exerciseName == '') {
-      return;
-    }
+
+    var newExerciseObj = {
+      id: 'ex-' + dayId + '-' + Date.now(),
+      name: exerciseName.trim()
+    };
 
     var updatedDays = [];
     for (var i = 0; i < days.length; i++) {
       var currentDay = days[i];
       if (currentDay.id == dayId) {
-        var newExercisesList = [];
+        var updatedExercises = [];
         for (var j = 0; j < currentDay.exercises.length; j++) {
-          newExercisesList.push(currentDay.exercises[j]);
+          updatedExercises.push(currentDay.exercises[j]);
         }
-        newExercisesList.push(exerciseName.trim());
-        
-        var updatedDayObj = {
+        updatedExercises.push(newExerciseObj);
+
+        updatedDays.push({
           id: currentDay.id,
           dayName: currentDay.dayName,
-          exercises: newExercisesList
-        };
-        updatedDays.push(updatedDayObj);
+          exercises: updatedExercises
+        });
       } else {
         updatedDays.push(currentDay);
       }
@@ -92,43 +304,50 @@ export default function SplitBuilder() {
     setNewExerciseText(updatedText);
   }
 
-  function handleAddExerciseClick(event) {
-    var dayId = Number(event.currentTarget.getAttribute('data-dayid'));
-    addExercise(dayId);
+  function handleExerciseKeyDown(event, dayId) {
+    if (event.key == 'Enter') {
+      event.preventDefault();
+      addExercise(dayId);
+    }
   }
 
-  function removeExercise(dayId, exerciseIndex) {
+  function removeExercise(dayId, exerciseId) {
+    var rawLog = localStorage.getItem('activeWorkoutLog');
+    if (rawLog) {
+      var parsedLog = JSON.parse(rawLog);
+      if (parsedLog.exercises) {
+        var filteredLogs = [];
+        for (var m = 0; m < parsedLog.exercises.length; m++) {
+          if (parsedLog.exercises[m].id != exerciseId) {
+            filteredLogs.push(parsedLog.exercises[m]);
+          }
+        }
+        parsedLog.exercises = filteredLogs;
+        localStorage.setItem('activeWorkoutLog', JSON.stringify(parsedLog));
+        setActiveWorkoutExercises(filteredLogs);
+      }
+    }
+
     var updatedDays = [];
     for (var i = 0; i < days.length; i++) {
       var currentDay = days[i];
       if (currentDay.id == dayId) {
-        var newExercisesList = [];
+        var filteredExercises = [];
         for (var j = 0; j < currentDay.exercises.length; j++) {
-          if (j != exerciseIndex) {
-            newExercisesList.push(currentDay.exercises[j]);
+          if (currentDay.exercises[j].id != exerciseId) {
+            filteredExercises.push(currentDay.exercises[j]);
           }
         }
-        var updatedDayObj = {
+        updatedDays.push({
           id: currentDay.id,
           dayName: currentDay.dayName,
-          exercises: newExercisesList
-        };
-        updatedDays.push(updatedDayObj);
+          exercises: filteredExercises
+        });
       } else {
         updatedDays.push(currentDay);
       }
     }
     setDays(updatedDays);
-  }
-
-  function handleRemoveExerciseClick(event) {
-    var dayId = Number(event.currentTarget.getAttribute('data-dayid'));
-    var index = Number(event.currentTarget.getAttribute('data-index'));
-    removeExercise(dayId, index);
-  }
-
-  function handleNewDayNameChange(event) {
-    setNewDayName(event.target.value);
   }
 
   function saveSplitToLocalStorage() {
@@ -137,49 +356,194 @@ export default function SplitBuilder() {
   }
 
   return (
-    <main className="min-h-screen bg-zinc-950 px-[15px] py-[27px] font-mono text-zinc-100">
-      <header className="mb-[23px] border-b-2 border-zinc-800 pb-[9px]">
-        <h1 className="mb-[5px] text-[26px] font-bold text-white">Workout Split Builder</h1>
-        <p className="text-[13px] text-zinc-500">Customize your weekly routine and plan exercises</p>
+    <div style={{ backgroundColor: '#09090b', minHeight: '92vh', color: '#f3f4f6', padding: '27px 15px', fontFamily: 'monospace' }}>
+      <header style={{ marginBottom: '23px', borderBottom: '2px solid #27272a', paddingBottom: '12px' }}>
+        <button
+          onClick={function() { navigate(-1); }}
+          style={{
+            backgroundColor: 'transparent',
+            border: 'none',
+            color: '#60a5fa',
+            cursor: 'pointer',
+            fontSize: '13px',
+            fontWeight: 'bold',
+            padding: '0 0 10px 0'
+          }}
+        >
+          &larr; Back
+        </button>
+
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '10px' }}>
+          <div>
+            <h1 style={{ fontSize: '24px', fontWeight: 'bold', margin: '0 0 5px 0' }}>Workout Split Builder</h1>
+            <p style={{ color: '#71717a', fontSize: '13px', margin: '0' }}>
+              Newest days appear on the left. Click any exercise to open its workout.
+            </p>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', backgroundColor: '#141416', border: '1px solid #27272a', padding: '6px 12px', fontSize: '11px' }}>
+            <span style={{ color: '#71717a', fontWeight: 'bold' }}>Status:</span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '5px', color: '#a1a1aa' }}>
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#000000', border: '1px solid #71717a', display: 'inline-block' }}></span>
+              Not Started
+            </span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '5px', color: '#facc15' }}>
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#eab308', border: '1px solid #ca8a04', display: 'inline-block' }}></span>
+              In Progress
+            </span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '5px', color: '#4ade80' }}>
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#22c55e', border: '1px solid #16a34a', display: 'inline-block' }}></span>
+              Complete
+            </span>
+          </div>
+        </div>
       </header>
 
-      <div className="mb-[29px] flex flex-wrap gap-[9px]">
-        <input type="text" placeholder="e.g. Day 3 - Legs" value={newDayName} onChange={handleNewDayNameChange} className="min-w-[220px] flex-1 border border-zinc-700 bg-zinc-900 p-[9px] text-white outline-none focus:border-blue-500" />
-        <button onClick={addDay} className="cursor-pointer border border-blue-500 bg-blue-700 px-[15px] py-[9px] font-semibold text-white hover:bg-blue-600">Add Workout Day</button>
-        <button onClick={saveSplitToLocalStorage} className="cursor-pointer border border-green-500 bg-green-700 px-[15px] py-[9px] font-semibold text-white hover:bg-green-600">Save Split Data</button>
+      <div style={{ display: 'flex', gap: '9px', marginBottom: '29px', flexWrap: 'wrap' }}>
+        <input
+          type="text"
+          placeholder="e.g. Day 3 - Legs (Press Enter)"
+          value={newDayName}
+          onChange={function(e) { setNewDayName(e.target.value); }}
+          onKeyDown={handleNewDayKeyDown}
+          style={{ padding: '9px', border: '1px solid #3f3f46', backgroundColor: '#18181b', color: '#ffffff', flex: '1', minWidth: '220px' }}
+        />
+        <button
+          onClick={addDay}
+          style={{ padding: '9px 15px', backgroundColor: '#1d4ed8', color: '#ffffff', border: '1px solid #3b82f6', cursor: 'pointer', fontWeight: '600' }}
+        >
+          Add Workout Day
+        </button>
+        <button
+          onClick={saveSplitToLocalStorage}
+          style={{ padding: '9px 15px', backgroundColor: '#15803d', color: '#ffffff', border: '1px solid #22c55e', cursor: 'pointer', fontWeight: '600' }}
+        >
+          Save Split Data
+        </button>
       </div>
 
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-[17px]">
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(310px, 1fr))', gap: '17px', alignItems: 'start' }}>
         {days.map(function(day) {
+          var inputVal = '';
+          if (newExerciseText[day.id]) {
+            inputVal = newExerciseText[day.id];
+          }
+
           return (
-            <div key={day.id} className="border border-zinc-800 bg-zinc-900 px-[18px] pb-[22px] pt-[13px]">
-              <div className="mb-[13px] flex items-center justify-between gap-3">
-                <h3 className="text-base font-bold text-white">{day.dayName}</h3>
-                <button data-id={day.id} onClick={handleDeleteDayClick} className="cursor-pointer border border-red-500 bg-red-700 px-2 py-1 text-[11px] text-white hover:bg-red-600">Delete Day</button>
+            <div key={day.id} style={{ backgroundColor: '#141416', border: '1px solid #27272a', padding: '14px 16px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '13px', borderBottom: '1px solid #27272a', paddingBottom: '8px' }}>
+                <h3 style={{ fontSize: '15px', fontWeight: 'bold', margin: '0' }}>{day.dayName}</h3>
+                <button
+                  onClick={function() { deleteDay(day.id); }}
+                  style={{ backgroundColor: '#7f1d1d', color: '#fca5a5', border: '1px solid #ef4444', padding: '3px 8px', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold' }}
+                >
+                  Delete
+                </button>
               </div>
 
-              <div className="mb-[17px]">
-                {day.exercises.length == 0 && <p className="my-[5px] text-xs italic text-zinc-500">No exercises added yet.</p>}
-                {day.exercises.length > 0 && <ul className="m-0 list-none p-0">
-                  {day.exercises.map(function(exercise, index) {
-                    return (
-                      <li key={index} className="mb-1 flex items-center justify-between gap-3 border-b border-zinc-700 bg-zinc-800/80 px-[11px] py-[7px] text-[13px]">
-                        <span>{exercise}</span>
-                        <button data-dayid={day.id} data-index={index} onClick={handleRemoveExerciseClick} className="cursor-pointer bg-transparent px-[3px] text-[13px] font-bold text-red-500 hover:text-red-400">X</button>
-                      </li>
-                    );
-                  })}
-                </ul>}
+              <div style={{ marginBottom: '17px' }}>
+                {day.exercises.length == 0 && (
+                  <p style={{ color: '#71717a', fontSize: '12px', fontStyle: 'italic', margin: '5px 0' }}>No exercises added yet.</p>
+                )}
+
+                {day.exercises.length > 0 && (
+                  <ul style={{ listStyleType: 'none', padding: '0', margin: '0' }}>
+                    {day.exercises.map(function(exercise) {
+                      var status = getExerciseStatus(exercise.id);
+
+                      var itemBg = '#000000';
+                      var itemBorder = '#3f3f46';
+                      var dotBg = '#27272a';
+                      var dotBorder = '#71717a';
+                      var textColor = '#d4d4d8';
+
+                      if (status == 'complete') {
+                        itemBg = '#052e16';
+                        itemBorder = '#16a34a';
+                        dotBg = '#22c55e';
+                        dotBorder = '#4ade80';
+                        textColor = '#bbf7d0';
+                      } else if (status == 'in-progress') {
+                        itemBg = '#422006';
+                        itemBorder = '#ca8a04';
+                        dotBg = '#eab308';
+                        dotBorder = '#facc15';
+                        textColor = '#fef08a';
+                      }
+
+                      return (
+                        <li
+                          key={exercise.id}
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            backgroundColor: itemBg,
+                            border: '1px solid ' + itemBorder,
+                            padding: '7px 10px',
+                            marginBottom: '6px',
+                            fontSize: '13px'
+                          }}
+                        >
+                          <div
+                            onClick={function() { handleExerciseClick(exercise); }}
+                            title={'Click to log ' + exercise.name}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '8px',
+                              color: textColor,
+                              cursor: 'pointer',
+                              flex: 1
+                            }}
+                          >
+                            <span style={{
+                              width: '9px',
+                              height: '9px',
+                              borderRadius: '50%',
+                              backgroundColor: dotBg,
+                              border: '1px solid ' + dotBorder,
+                              display: 'inline-block',
+                              flexShrink: 0
+                            }}></span>
+                            <span>{exercise.name}</span>
+                          </div>
+
+                          <button
+                            onClick={function() { removeExercise(day.id, exercise.id); }}
+                            style={{ backgroundColor: 'transparent', color: '#ef4444', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: 'bold', padding: '0 4px' }}
+                            title="Remove exercise"
+                          >
+                            &times;
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
               </div>
 
-              <div className="flex gap-[6px]">
-                <input type="text" placeholder="Add exercise" data-dayid={day.id} value={newExerciseText[day.id] || ''} onChange={handleExerciseInputChange} className="flex-1 border border-zinc-700 bg-zinc-950 px-[10px] py-[6px] text-xs text-white outline-none focus:border-indigo-500" />
-                <button data-dayid={day.id} onClick={handleAddExerciseClick} className="cursor-pointer border border-indigo-500 bg-indigo-700 px-3 py-[6px] text-xs font-semibold text-white hover:bg-indigo-600">Add</button>
+              <div style={{ display: 'flex', gap: '6px' }}>
+                <input
+                  type="text"
+                  placeholder="Add exercise (Press Enter)"
+                  data-dayid={day.id}
+                  value={inputVal}
+                  onChange={handleExerciseInputChange}
+                  onKeyDown={function(e) { handleExerciseKeyDown(e, day.id); }}
+                  style={{ flex: '1', padding: '6px 9px', backgroundColor: '#09090b', border: '1px solid #3f3f46', color: '#ffffff', fontSize: '12px' }}
+                />
+                <button
+                  onClick={function() { addExercise(day.id); }}
+                  style={{ padding: '6px 12px', backgroundColor: '#4338ca', color: '#ffffff', border: '1px solid #6366f1', cursor: 'pointer', fontSize: '12px', fontWeight: '600' }}
+                >
+                  Add
+                </button>
               </div>
             </div>
           );
         })}
       </div>
-    </main>
+    </div>
   );
 }
