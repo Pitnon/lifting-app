@@ -2,6 +2,10 @@ import React from 'react';
 import { Routes, Route, Link, useNavigate, useLocation } from 'react-router-dom';
 import SplitBuilder from './features/splits/SplitBuilder';
 import WorkoutLogger from './features/workouts/WorkoutLogger';
+import createDayGif from './gifs/CreateDay.gif';
+import createExerciseGif from './gifs/CreateExercise.gif';
+import createSetGif from './gifs/CreateSet.gif';
+
 
 function NavBar() {
   var navigate = useNavigate();
