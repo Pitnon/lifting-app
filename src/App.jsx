@@ -135,7 +135,7 @@ function Guide() {
         <p>
           When you first open up the site you land right on the split builder page. To start off, just click on the text box and type in the name of the day you want to make, like Legs or Push. After you type it out, click the Add Workout Day button. That will create the day and put it right on your screen.
         </p>
-        <img src="/src/gifs/CreateDay.gif" alt="" style={gifStyle} />
+        <img src={createDayGif} alt="" style={gifStyle} />
       </div>
 
       <div style={sectionStyle}>
@@ -143,7 +143,7 @@ function Guide() {
         <p>
           Once your day is on the screen you can start adding lifts to it. Click on the text box that says add exercise and type in whatever you are doing, like Squats or Bench Press. Click add and it will show up in the list under that day. You can keep adding more exercises, and if you mess up you can just click remove to get rid of them.
         </p>
-        <img src="/src/gifs/CreateExercise.gif" alt="" style={gifStyle} />
+        <img src={createExerciseGif} alt="" style={gifStyle} />
       </div>
 
       <div style={sectionStyle}>
@@ -151,7 +151,7 @@ function Guide() {
         <p>
           When you click on any exercise in your list, it opens up the workout section for that movement. This is where you actually log what you lifted, you can enter your weight and reps, like for instance, 255 lbs for 5 reps. There is also a spot for training notes if you want to write down things like seat height/angle or how hard the set was. Once you finish all your sets, click the Complete Exercise button.
         </p>
-        <img src="/src/gifs/CreateSet.gif" alt="" style={gifStyle} />
+        <img src={createSetGif} alt="" style={gifStyle} />
       </div>
 
       <div style={sectionStyle}>
